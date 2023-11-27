@@ -1,0 +1,62 @@
+version: "3.4"
+
+services:
+  app:
+    build:
+      context: .
+    volumes:
+      - .:/home/app
+    ports:
+      - 8000:8000
+    env_file:
+      - .env.dev
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+    depends_on:
+      - fluentbit
+      - prometheus
+      - tempo
+      - pushgateway
+
+  pushgateway:
+    build:
+      context: templates/pushgateway
+    ports:
+      - 8001:8001
+  
+  prometheus:
+    build:
+      context: templates/prometheus
+    volumes:
+      - ./templates/prometheus:/etc/prometheus
+    ports:
+      - 8002:8002
+
+  tempo:
+    build:
+      context: templates/tempo
+    ports:
+      - 8003:8003
+      - 8004:8004
+  
+  grafana:
+    build:
+      context: templates/grafana
+    ports:
+      - 8005:3000
+  
+  loki:
+    build:
+      context: templates/loki
+    ports:
+      - 8006:8006
+  
+  fluentbit:
+    build:
+      context: templates/fluentbit
+    ports:
+      - 24224:24224
+    depends_on:
+      - loki
