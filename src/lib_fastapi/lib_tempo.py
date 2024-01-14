@@ -1,6 +1,6 @@
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
@@ -21,12 +21,10 @@ class InstrumentationTempo():
             "compose_service": self.name
         })
 
-
         tracer = TracerProvider(resource=resource)
-        trace.set_tracer_provider(tracer)
 
         tracer.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=self.tempoUrl)))
-
+        trace.set_tracer_provider(tracer)
         if log_correlation:
             LoggingInstrumentor().instrument(set_logging_format=True)
             

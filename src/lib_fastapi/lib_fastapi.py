@@ -72,7 +72,7 @@ class FastApiObservability:
     
     def send_metrics(self):
         try:
-            logging.info("Metrics sending to pushGateway")
+            # logging.info("Metrics sending to pushGateway")
             pushadd_to_gateway(self.pushGatewayUrl, job=self.name, registry=REGISTRY)
         except Exception as e:
             logging.error(f"Error send metrics to pushGateway: {e}")

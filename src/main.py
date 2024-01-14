@@ -27,8 +27,8 @@ app_version= os.environ.get("APP_VERSION")
 tempo_port= os.environ.get("TEMPO_PORT")
 tempo_host= os.environ.get("TEMPO_HOST")
 
-push_gateway_url = push_gateway_host + ":" + push_gateway_port
-tempo_url = 'http://' + tempo_host + ':' + tempo_port
+push_gateway_url = 'http://' + push_gateway_host + ":" + push_gateway_port
+tempo_url = 'http://' + tempo_host + ':' + tempo_port + '/v1/traces'
 
 app = FastApiObservability(path="/", name=app_name, version=app_version,
                            prometheus=True, tempo=True, tempoUrl=tempo_url).get_api_application()
@@ -37,12 +37,12 @@ REQUEST_TESTE = Counter(
     "fastapi_requests_teste", "Total count of requests by method and path.",  ["app_name"]
 )
 
-# class EndpointFilter(logging.Filter):
+class EndpointFilter(logging.Filter):
 
-#     def filter(self, record: logging.LogRecord) -> bool:
-#         return record.getMessage().find('GET /metrics') == -1
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.getMessage().find('GET /metrics') == -1
 
-# logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
+logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
 # Vetor para armazenar as medidas
 measurements = []
