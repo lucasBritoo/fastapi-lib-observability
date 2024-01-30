@@ -18,7 +18,7 @@ from lib_fastapi.lib_tempo import InstrumentationTempo
 class FastApiObservability:
 
     def __init__(self, path="", name="app", version="0.0.1", prometheus=None, pushGateway=None,
-                 pushGatewayUrl=None,tempo=None, tempoUrl=None):
+                 pushGatewayUrl=None,tempo=None, tempoUrl=None, openCollector=None):
         self.pushGatewayUrl = pushGatewayUrl
         self.tempoUrl = tempoUrl
         self.name = name

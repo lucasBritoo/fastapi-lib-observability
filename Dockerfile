@@ -1,6 +1,6 @@
 FROM python:3.11
 
-WORKDIR /home/app
+WORKDIR /app
 COPY requirements/ requirements
  
 RUN pip install -r requirements/api.txt

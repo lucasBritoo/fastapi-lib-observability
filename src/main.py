@@ -4,19 +4,19 @@ import time
 
 import logging
 import os
-import random
 import time
-from typing import Optional
 
-import httpx
 import uvicorn
-from fastapi import FastAPI, Response
-from opentelemetry.propagate import inject
 
 from lib_fastapi.lib_fastapi import FastApiObservability
-from lib_fastapi.lib_fastapi import PrometheusMiddleware
+from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
+from opentelemetry._logs import set_logger_provider
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+from opentelemetry.sdk.resources import Resource
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
-from prometheus_client import REGISTRY, Counter, Gauge, Histogram
+from prometheus_client import REGISTRY, Counter
+from lib_fastapi.lib_log import Logger
 
 push_gateway_host = os.environ.get("PUSH_GATEWAY_HOST")
 push_gateway_port = os.environ.get("PUSH_GATEWAY_PORT")
@@ -30,49 +30,48 @@ tempo_host= os.environ.get("TEMPO_HOST")
 push_gateway_url = 'http://' + push_gateway_host + ":" + push_gateway_port
 tempo_url = 'http://' + tempo_host + ':' + tempo_port + '/v1/traces'
 
-app = FastApiObservability(path="/", name=app_name, version=app_version,
-                           prometheus=True, tempo=True, tempoUrl=tempo_url).get_api_application()
+print(app_name)
+
+# app = FastApiObservability(path="/", name=app_name, version=app_version,
+#                            prometheus=True, tempo=True, tempoUrl=tempo_url).get_api_application()
+
+app = FastApiObservability(path="/", name=app_name, version=app_version, tempo=True, tempoUrl=tempo_url).get_api_application()
 
 REQUEST_TESTE = Counter(
     "fastapi_requests_teste", "Total count of requests by method and path.",  ["app_name"]
 )
 
-class EndpointFilter(logging.Filter):
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        return record.getMessage().find('GET /metrics') == -1
-
-logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
-
 # Vetor para armazenar as medidas
 measurements = []
+
+logger = Logger(__name__, logging.DEBUG).getLogger()
 
 
 @app.get('/data')
 def get_system_date():
     current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    logging.info("Recuperando Data")
-    return {"date": configs.config_settings["TEMPO_OTLP_GRPC"]}
+    logger.info("Recuperando Data")
+    return {"date": current_date}
 
 @app.get("/cpu")
 def get_cpu_usage():
     cpu_usage = psutil.cpu_percent(interval=1)  # Obtém a porcentagem de uso da CPU
-    logging.info("Recuperando CPU")
-    REQUEST_TESTE.labels(app_name=app_name).inc()
+    logger.info("Recuperando CPU")
+    # REQUEST_TESTE.labels(app_name=app_name).inc()
     return {"cpu_usage": cpu_usage}
 
 @app.get("/ram")
 def get_ram_usage():
     ram = psutil.virtual_memory()
     ram_usage = ram.percent  # Obtém a porcentagem de uso da RAM
-    logging.info("Recuperando RAM")
+    logger.info("Recuperando RAM")
     return {"ram_usage": ram_usage}
 
 @app.get("/start")
 async def start_measurement():
     # Limpa o vetor de medidas
     measurements.clear()
-    logging.info("Iniciando start")
+    logger.info("Iniciando start")
     # Realiza a coleta de medidas a cada 10 segundos por 1 minuto
     for _ in range(6):  # 6 vezes para 1 minuto
         # Simula a coleta de medidas de CPU e RAM (substitua por sua lógica real)
@@ -84,13 +83,13 @@ async def start_measurement():
 
         # Aguarda 10 segundos
         time.sleep(10)
-    logging.info("Pausando start")
+    logger.info("Pausando start")
     return {"message": "Medições iniciadas"}
 
 @app.get("/get_metrics")
 async def get_measurements():
     # Retorna as medidas armazenadas
-    logging.info("Recuperando metrics")
+    logger.info("Recuperando metrics")
     return measurements
 
 def get_cpu_measurement():
@@ -104,7 +103,7 @@ if __name__ == "__main__":
 # update uvicorn access logger format
     #log_config = uvicorn.config.LOGGING_CONFIG
     #log_config["formatters"]["access"]["fmt"] = "%(asctime)s %(levelname)s [%(name)s] [%(filename)s:%(lineno)d] [trace_id=%(otelTraceID)s span_id=%(otelSpanID)s resource.service.name=%(otelServiceName)s] - %(message)s"
-    LoggingInstrumentor().instrument(set_logging_format=True)
+    # LoggingInstrumentor().instrument(set_logging_format=True)
     uvicorn.run(
         app,
         host=app_host,

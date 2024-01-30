@@ -25,6 +25,7 @@ class InstrumentationTempo():
 
         tracer.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=self.tempoUrl)))
         trace.set_tracer_provider(tracer)
+        LoggingInstrumentor().instrument(set_logging_format=True)
         if log_correlation:
             LoggingInstrumentor().instrument(set_logging_format=True)
             

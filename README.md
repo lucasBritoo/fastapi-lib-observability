@@ -53,3 +53,7 @@ Os traces coletados pelo opentelemetry são enviados para a instância do Tempo.
 ## Grafana
 
 O grafana é a ferramenta escolhida para criação dos dashboards contendo as informações coletadas por essa stack.
+
+## Docker 
+
+docker network create observability-network --driver bridge
