@@ -57,3 +57,5 @@ O grafana é a ferramenta escolhida para criação dos dashboards contendo as in
 ## Docker 
 
 docker network create observability-network --driver bridge
+git config core.autocrlf true
+git config core.eol lf
