@@ -16,6 +16,7 @@ app_port= os.environ.get("APP_PORT")
 app_version= os.environ.get("APP_VERSION")
 tempo_port= os.environ.get("TEMPO_PORT")
 tempo_host= os.environ.get("TEMPO_HOST")
+log_file = os.environ.get("LOG_FILE")
 
 push_gateway_url = 'http://' + push_gateway_host + ":" + push_gateway_port
 tempo_url = 'http://' + tempo_host + ':' + tempo_port + '/v1/traces'
@@ -52,12 +53,13 @@ def get_ram_measurement():
 if __name__ == "__main__":
 
     logConfig = Logger(appName=app_name, name=app_name, level=logging.DEBUG)
-    # logConfig.setLogFile(path='/workspaces/fastapi-lib-observability/templates/fluentbit/.logs/log.log')
+    # logConfig.setLogFile(path=log_file)
     logConfig.setLogExporter(url="http://otel-collector:4317")
     logConfig.setLogConsole()
     logConfig.setFormatter()
     logConfig.setBasicConfig()
-    Instrumentation().setting_otlp(app=app, appName=app_name, url="http://otel-collector:4317")
+    # Instrumentation().setting_otlp(app=app, appName=app_name, grpc=True, url="http://otel-collector:4317")
+    Instrumentation().setting_otlp(app=app, appName=app_name, grpc=True, url="http://tempo:8004/v1/traces")
 
     uvicorn.run(
         app,
