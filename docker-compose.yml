@@ -21,13 +21,17 @@ services:
       - observability-network
 
   pushgateway:
+    container_name: pushgateway
     build:
       context: templates/pushgateway
     ports:
       - 8001:8001
     restart: always
+    networks:
+      - observability-network
   
   prometheus:
+    container_name: prometheus
     build:
       context: templates/prometheus
     volumes:
@@ -35,6 +39,8 @@ services:
     ports:
       - 8002:8002
     restart: always
+    networks:
+      - observability-network
 
   tempo:
     container_name: tempo

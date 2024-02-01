@@ -1,4 +1,5 @@
 from lib_fastapi.lib_fastapi import FastApiObservability
+from prometheus_client import Counter
 from lib_fastapi.lib_log import Logger
 from lib_fastapi.lib_instrumentation import Instrumentation
 from datetime import datetime
@@ -7,22 +8,19 @@ import uvicorn
 import psutil
 import os
 
+METRICS_EXPORTER_URL = os.environ.get("METRICS_EXPORTER_URL")
+TRACES_EXPORTER_URL = os.environ.get("TRACES_EXPORTER_URL")
+LOGS_EXPORTER_URL= os.environ.get("LOGS_EXPORTER_URL")
+APP_NAME= os.environ.get("APP_NAME")
+APP_HOST= os.environ.get("APP_HOST")
+APP_PORT= os.environ.get("APP_PORT")
+APP_VERSION= os.environ.get("APP_VERSION")
+LOG_FILE = os.environ.get("LOG_FILE")
 
-push_gateway_host = os.environ.get("PUSH_GATEWAY_HOST")
-push_gateway_port = os.environ.get("PUSH_GATEWAY_PORT")
-app_name= os.environ.get("SERVICE_NAME")
-app_host= os.environ.get("APP_HOST")
-app_port= os.environ.get("APP_PORT")
-app_version= os.environ.get("APP_VERSION")
-tempo_port= os.environ.get("TEMPO_PORT")
-tempo_host= os.environ.get("TEMPO_HOST")
-log_file = os.environ.get("LOG_FILE")
+fastApiObservability= FastApiObservability(path="/", name=APP_NAME, version=APP_VERSION)
+app= fastApiObservability.get_api_application()
 
-push_gateway_url = 'http://' + push_gateway_host + ":" + push_gateway_port
-tempo_url = 'http://' + tempo_host + ':' + tempo_port + '/v1/traces'
-
-app = FastApiObservability(path="/", name=app_name, version=app_version).get_api_application()
-
+# my_counter = Counter('meu_contador', 'Descrição do meu contador')
 logger = logging.getLogger(__name__)
 
 @app.get('/data')
@@ -35,6 +33,7 @@ def get_system_date():
 def get_cpu_usage():
     cpu_usage = psutil.cpu_percent(interval=1)
     logger.info("Recuperando CPU")
+    # my_counter.inc()
     return {"cpu_usage": cpu_usage}
 
 @app.get("/ram")
@@ -52,18 +51,19 @@ def get_ram_measurement():
 
 if __name__ == "__main__":
 
-    logConfig = Logger(appName=app_name, name=app_name, level=logging.DEBUG)
-    # logConfig.setLogFile(path=log_file)
-    logConfig.setLogExporter(url="http://otel-collector:4317")
+    logConfig = Logger(appName=APP_NAME, name=APP_NAME, level=logging.DEBUG)
+    logConfig.setLogFile(path=LOG_FILE)
+    # logConfig.setLogExporter(url=LOGS_EXPORTER_URL)
     logConfig.setLogConsole()
     logConfig.setFormatter()
     logConfig.setBasicConfig()
-    # Instrumentation().setting_otlp(app=app, appName=app_name, grpc=True, url="http://otel-collector:4317")
-    Instrumentation().setting_otlp(app=app, appName=app_name, grpc=True, url="http://tempo:8004/v1/traces")
-
+    fastApiObservability.setInstrumentorTraces(grpc=True, url=TRACES_EXPORTER_URL)
+    fastApiObservability.setMetricsPrometheus()
+    # fastApiObservability.setExporterPushGateway(url=METRICS_EXPORTER_URL)
+    
     uvicorn.run(
         app,
-        host=app_host,
-        port=int(app_port),
+        host=APP_HOST,
+        port=int(APP_PORT),
         log_config=logConfig.getConfig()
     )
