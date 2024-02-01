@@ -1,33 +1,37 @@
 version: "3.4"
 
 services:
-  # app:
-  #   build:
-  #     context: .
-  #   # volumes:
-  #   #   - .:/home/app
-  #   ports:
-  #     - 8000:8000
-  #   env_file:
-  #     - .env.dev
-  #   logging:
-  #     driver: fluentd
-  #     options:
-  #       fluentd-address: localhost:24224
-  #   depends_on:
-  #     - fluentbit
-  #     - prometheus
-  #     - tempo
-  #     - pushgateway
+  app:
+    container_name: app-docker
+    build:
+      context: .
+    volumes:
+      - .:/app
+    ports:
+      - 8000:8000
+    env_file:
+      - .env.dev
+    # logging:
+    #   driver: fluentd
+    #   options:
+    #     fluentd-address: localhost:24224
+    depends_on:
+      - otel-collector
+    networks:
+      - observability-network
 
   pushgateway:
+    container_name: pushgateway
     build:
       context: templates/pushgateway
     ports:
       - 8001:8001
     restart: always
+    networks:
+      - observability-network
   
   prometheus:
+    container_name: prometheus
     build:
       context: templates/prometheus
     volumes:
@@ -35,6 +39,8 @@ services:
     ports:
       - 8002:8002
     restart: always
+    networks:
+      - observability-network
 
   tempo:
     container_name: tempo
@@ -68,6 +74,7 @@ services:
       - .env.dev
     ports:
       - 8006:8006
+      - 8009:8009
     restart: always
     networks:
       - observability-network
@@ -83,6 +90,8 @@ services:
     ports:
       - 24224:24224
     restart: always
+    volumes:
+      - ./templates/fluentbit/.logs:/logs/
     networks:
       - observability-network
     depends_on:

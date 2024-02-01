@@ -42,8 +42,7 @@ class FastApiObservability:
             allow_headers=["*"],
         )
 
-    def addPrometheus(self, scrapePrometheus):
-        self.scrapePrometheus = scrapePrometheus
+    def setMetricsPrometheus(self):
         self.app.add_middleware(PrometheusMiddleware, app_name=self.name)
         self.app.add_route("/metrics", self.metrics)
         
@@ -56,18 +55,16 @@ class FastApiObservability:
             )
             return response
         
-    def addMetrics(self, exporterMetrics):
-        self.exporterMetrics = exporterMetrics
-        
+    def setExporterPushGateway(self, url: str= 'http://localhost:5000'):
+        self.urlPushGateway = url
         schedule.every(10).seconds.do(self.send_metrics)
         metrics_thread = threading.Thread(target=self.send_metrics_timer)
         metrics_thread.daemon = True
         metrics_thread.start()
-        
-    def addTrace(self, exporterTrace):
-        self.exporterTrace = exporterTrace
-        Instrumentation().setting_otlp(self.app, self.name,self.exporterTrace)
-        
+    
+    def setInstrumentorTraces(self, url: str="http://localhost:4317", grpc: bool = True):
+        Instrumentation().setting_otlp(app=self.app, appName=self.name, grpc=grpc, url=url)
+               
     def get_api_application(self):
         return self.app
 
@@ -76,7 +73,7 @@ class FastApiObservability:
     
     def send_metrics(self):
         try:
-            pushadd_to_gateway(self.exporterMetrics, job=self.name, registry=REGISTRY)
+            pushadd_to_gateway(self.urlPushGateway, job=self.name, registry=REGISTRY)
         except Exception as e:
             logging.error(f"Error send metrics to pushGateway: {e}")
             
