@@ -3,9 +3,9 @@ from opentelemetry._logs import set_logger_provider
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.instrumentation.logging import LoggingInstrumentor
 import logging
-import os
+
+LOG_FORMAT_DEFAULT = "%(asctime)s %(levelname)s [%(name)s] [%(filename)s:%(lineno)d] - %(message)s"
 
 class EndpointFilter(logging.Filter):
 
@@ -14,27 +14,55 @@ class EndpointFilter(logging.Filter):
 
 class Logger():
     
-    def __init__(self, name, level):
-        
-        self.logger = logging.getLogger(name)
-        self.logger.addFilter(EndpointFilter())
-        self.logger.setLevel(level)
-        # logger.addHandler(handler)
+    def __init__(self, appName: str = "", name: str ="", level=None):
+        self.appName = appName
+        self.name = name
+        self.level = level
+        self.handlers = []
+        self.formatter = ""
     
-    def getLogger(self):
-        return self.logger
+    def getConfig(self):
+              
+        return logging.basicConfig(level=self.level,
+                                   handlers=self.handlers,
+                                   format=self.formatter)
+        
+        # self.logger.addFilter(EndpointFilter())
+            
+    def getExporterHandler(self, url):
+        logger_provider = LoggerProvider(
+            resource=Resource.create(
+            {
+                "service.name": self.appName,
+                "service.instance.id": self.appName,
+            }),
+        )
+        set_logger_provider(logger_provider)
+        
+        otlp_exporter = OTLPLogExporter(endpoint=url, insecure=True)
+        logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_exporter))
 
-# logger_provider = LoggerProvider(
-#     resource=Resource.create(
-#         {
-#             "service.name": "train-the-telemetry",
-#             "service.instance.id": os.uname().nodename,
-#         }
-#     ),
-# )
-# set_logger_provider(logger_provider)
+        return LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
+    
+    def getFileHandler(self, path):
+        return logging.FileHandler(path)
 
-# otlp_exporter = OTLPLogExporter(endpoint="http://otel-collector:4317", insecure=True)
-# logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_exporter))
-# handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
+    def getConsoleHandler(self):
+        return logging.StreamHandler()
+        
+    def setLogFile(self, path: str= '/log.log'):
+        self.handlers.append(self.getFileHandler(path))
+        
+    def setLogExporter(self, url: str = 'http://localhost:4317'):
+        self.handlers.append(self.getExporterHandler(url))
+        
+    def setLogConsole(self):
+        self.handlers.append(self.getConsoleHandler())
 
+    def setFormatter(self, formatter: str=LOG_FORMAT_DEFAULT):
+        self.formatter = formatter
+    
+    def setBasicConfig(self):
+        logging.basicConfig(level=self.level,
+                            handlers=self.handlers,
+                            format=self.formatter)

@@ -12,21 +12,23 @@ from starlette.responses import Response
 from prometheus_client import REGISTRY, pushadd_to_gateway
 
 from lib_fastapi.lib_prometheus import PrometheusMiddleware
-from lib_fastapi.lib_tempo import InstrumentationTempo
+from lib_fastapi.lib_instrumentation import Instrumentation
 
+
+logger = logging.getLogger(__name__)
 
 class FastApiObservability:
 
-    def __init__(self, path="", name="app", version="0.0.1", prometheus=None, pushGateway=None,
-                 pushGatewayUrl=None,tempo=None, tempoUrl=None, openCollector=None):
-        self.pushGatewayUrl = pushGatewayUrl
-        self.tempoUrl = tempoUrl
+    def __init__(self, path: str="", name: str="app", version: str="0.0.1"):
+        
         self.name = name
+        self.version = version
+        self.path = path
         
         self.app = FastAPI(
-            title=name,
-            version=version,
-            docs_url=f"{path}/docs/",
+            title=self.name,
+            version=self.version,
+            docs_url=f"{self.path}/docs/",
             openapi_url="/openapi.json"
         )
 
@@ -40,21 +42,11 @@ class FastApiObservability:
             allow_headers=["*"],
         )
 
-        if prometheus or pushGateway:
-            self.app.add_middleware(PrometheusMiddleware, app_name=name)
-
-        if prometheus:
-            self.app.add_route("/metrics", self.metrics)
-            
-        if pushGateway: 
-            schedule.every(10).seconds.do(self.send_metrics)
-            metrics_thread = threading.Thread(target=self.send_metrics_timer)
-            metrics_thread.daemon = True
-            metrics_thread.start()
-
-        if tempo:
-            InstrumentationTempo(self.app, self.name, self.tempoUrl)
-
+    def addPrometheus(self, scrapePrometheus):
+        self.scrapePrometheus = scrapePrometheus
+        self.app.add_middleware(PrometheusMiddleware, app_name=self.name)
+        self.app.add_route("/metrics", self.metrics)
+        
         @self.app.middleware("http")
         async def add_process_time_header(request: Request, call_next):
             start_time = time.time()
@@ -64,6 +56,18 @@ class FastApiObservability:
             )
             return response
         
+    def addMetrics(self, exporterMetrics):
+        self.exporterMetrics = exporterMetrics
+        
+        schedule.every(10).seconds.do(self.send_metrics)
+        metrics_thread = threading.Thread(target=self.send_metrics_timer)
+        metrics_thread.daemon = True
+        metrics_thread.start()
+        
+    def addTrace(self, exporterTrace):
+        self.exporterTrace = exporterTrace
+        Instrumentation().setting_otlp(self.app, self.name,self.exporterTrace)
+        
     def get_api_application(self):
         return self.app
 
@@ -72,8 +76,7 @@ class FastApiObservability:
     
     def send_metrics(self):
         try:
-            # logging.info("Metrics sending to pushGateway")
-            pushadd_to_gateway(self.pushGatewayUrl, job=self.name, registry=REGISTRY)
+            pushadd_to_gateway(self.exporterMetrics, job=self.name, registry=REGISTRY)
         except Exception as e:
             logging.error(f"Error send metrics to pushGateway: {e}")
             
