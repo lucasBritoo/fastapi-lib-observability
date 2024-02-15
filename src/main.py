@@ -2,6 +2,8 @@ from lib_fastapi.lib_fastapi import FastApiObservability
 from prometheus_client import Counter
 from lib_fastapi.lib_log import Logger
 from lib_fastapi.lib_instrumentation import Instrumentation
+from sqlalchemy import create_engine, Column, Integer, String, MetaData, Table
+from lib_fastapi.lib_postgres import Postgres, Exemplo
 from lib_fastapi.lib_metrics import Metrics
 from datetime import datetime
 import logging
@@ -18,7 +20,7 @@ APP_PORT= os.environ.get("APP_PORT")
 APP_VERSION= os.environ.get("APP_VERSION")
 LOG_FILE = os.environ.get("LOG_FILE")
 
-fastApiObservability= FastApiObservability(path="/", name=APP_NAME, version=APP_VERSION)
+fastApiObservability= FastApiObservability(path="", name=APP_NAME, version=APP_VERSION)
 metrics = Metrics()
 metrics.setMetricsProvider(appName=APP_NAME,url=METRICS_EXPORTER_URL)
 metrics.setMeter()
@@ -26,7 +28,6 @@ counterCPU = metrics.createCounter("CounterCPU")
 
 app= fastApiObservability.get_api_application()
 
-# my_counter = Counter('meu_contador', 'Descrição do meu contador')
 logger = logging.getLogger(__name__)
 
 @app.get('/data')
@@ -49,21 +50,41 @@ def get_ram_usage():
     logger.debug("Recuperando RAM")
     return {"ram_usage": ram_usage}
 
-def get_cpu_measurement():
-    return psutil.cpu_percent(interval=1)
+@app.get("/database")
+def config_datbase():
+    postgres = Postgres()
+    postgres.setDatabaseEngine()
+    postgres.setDatabaseSession()
+    postgres.setDatabaseInstrumentation()
+    metadata = MetaData()
 
-def get_ram_measurement():
-    return psutil.virtual_memory().percents
+    metadata.create_all(postgres.engine)
+    
+    novo_exemplo = Exemplo(nome='John Doe', idade=30)
+    postgres.session.add(novo_exemplo)
+    postgres.session.commit()
+
+    # Consultar dados da tabela
+    resultados = postgres.session.query(Exemplo).all()
+
+    # Exibir resultados
+    for exemplo in resultados:
+        print(f"ID: {exemplo.id}, Nome: {exemplo.nome}, Idade: {exemplo.idade}")
+
+    # Fechar a sessão
+    postgres.session.close()
+    
+    return {"database": True }
 
 if __name__ == "__main__":
 
     logConfig = Logger(appName=APP_NAME, name=APP_NAME, level=logging.DEBUG)
     # logConfig.setLogFile(path=LOG_FILE)
-    # logConfig.setLogExporter(url=LOGS_EXPORTER_URL)
+    logConfig.setLogExporter(url=LOGS_EXPORTER_URL)
     logConfig.setLogConsole()
     logConfig.setFormatter()
     logConfig.setBasicConfig()
-    # fastApiObservability.setInstrumentorTraces(grpc=True, url=TRACES_EXPORTER_URL)
+    fastApiObservability.setInstrumentorTraces(grpc=True, url=TRACES_EXPORTER_URL)
     # fastApiObservability.setMetricsPrometheus()
     # fastApiObservability.setExporterPushGateway(url=METRICS_EXPORTER_URL)
     

@@ -114,6 +114,20 @@ services:
     restart: always
     networks:
       - observability-network
+  
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: fastapi
+    volumes:
+      - ./templates/postgres/.data:/var/lib/postgresql/data
+    networks:
+      - observability-network
 
 networks:
   observability-network:

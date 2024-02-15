@@ -32,15 +32,15 @@ class FastApiObservability:
             openapi_url="/openapi.json"
         )
 
-        self.app.router.redirect_slashes = False
+        # self.app.router.redirect_slashes = False
 
-        self.app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
+        # self.app.add_middleware(
+        #     CORSMiddleware,
+        #     allow_origins=["*"],
+        #     allow_credentials=True,
+        #     allow_methods=["*"],
+        #     allow_headers=["*"],
+        # )
 
     def setMetricsPrometheus(self):
         self.app.add_middleware(PrometheusMiddleware, app_name=self.name)
